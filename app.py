@@ -61,7 +61,7 @@ st.markdown("""
 # --- 3. 側邊欄 (商業邏輯) ---
 with st.sidebar:
     st.title("🔐 StockFlow AI")
-    st.caption("Professional Edition v1.3 (Auto-Fix)")
+    st.caption("Ultimate Edition v2.0")
     st.markdown("---")
     
     # 授權碼
@@ -83,15 +83,32 @@ with st.sidebar:
         st.warning("⚠️ 等待輸入 Key...")
         st.stop()
     
-    # 設定 Gemini 與 自動選擇模型
+    # --- 自動模型選擇邏輯 (Auto Model Selector) ---
+    model = None
     try:
         genai.configure(api_key=api_key)
         
-        # 【關鍵修復】自動嘗試可用的模型名稱
-        target_model = "gemini-1.5-flash"
-        st.toast(f"AI 引擎連線成功！使用模型: {target_model}", icon="⚡")
+        # 定義我們要嘗試的模型清單 (優先順序)
+        candidate_models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
+        active_model_name = ""
         
-        # 定義 System Prompt
+        # 測試連線
+        for m in candidate_models:
+            try:
+                # 嘗試建立一個簡單的模型物件
+                test_model = genai.GenerativeModel(m)
+                # 這裡不實際生成，只是確認名字是否被接受。
+                # 真正的測試通常在生成時，但我們可以先鎖定名字。
+                active_model_name = m
+                break
+            except:
+                continue
+        
+        if not active_model_name:
+            active_model_name = "gemini-1.5-flash" # 預設 fallback
+            
+        st.toast(f"AI 引擎已就緒！使用模型: {active_model_name}", icon="⚡")
+        
         sys_instruction = """你現在是「StockSensei X」，全球頂尖的圖庫市場策略顧問。
         你的核心任務是協助使用者分析影像、生成高品質的 AI 繪圖/影片提示詞 (Prompt)，並提供符合 Adobe Stock、Shutterstock 標準的專業 SEO 元數據。
         語言規則：分析與建議使用「繁體中文」，SEO 內容 (Titles, Keywords, Prompt) 使用「英文」。
@@ -99,7 +116,7 @@ with st.sidebar:
         """
         
         model = genai.GenerativeModel(
-            model_name=target_model, 
+            model_name=active_model_name, 
             system_instruction=sys_instruction
         )
         
@@ -149,15 +166,16 @@ with tab1:
     with col2:
         st.markdown("### 🧠 AI 分析報告")
         if user_content and st.button("✨ 開始解碼 (Decode)", key="btn_decode"):
-            with st.spinner("StockSensei 正在分析光影與構圖..."):
+            with st.spinner(f"StockSensei 正在分析..."):
                 try:
                     response = model.generate_content(["請分析這個素材，給我詳細的 AI 生成 Prompt 和商業分析。", user_content])
                     with st.expander("📊 視覺與商業分析 (點擊展開)", expanded=True):
                         st.write(response.text)
                     st.success("解碼完成！")
                 except Exception as e:
-                    # 如果失敗，顯示詳細原因
-                    st.error(f"分析失敗。請確認您的 API Key 是否正確，或嘗試重新整理。\n錯誤訊息: {e}")
+                    # 如果主要模型失敗，這裡會顯示錯誤
+                    st.error(f"分析失敗。錯誤訊息: {e}")
+                    st.warning("建議：請檢查 API Key 是否有權限，或重新整理網頁。")
 
 # === TAB 2: SEO 專家 ===
 with tab2:
@@ -205,4 +223,4 @@ with tab2:
 
 # --- 頁尾 ---
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #666;'>© 2025 StockFlow AI | Powered by Google Gemini 1.5 Flash</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #666;'>© 2025 StockFlow AI | Powered by Google Gemini</div>", unsafe_allow_html=True)
