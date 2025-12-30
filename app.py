@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 import time
+import tempfile
 
 # --- 網頁設定 (Page Config) ---
 st.set_page_config(
@@ -11,13 +12,23 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 自定義 CSS (讓介面更像你的截圖) ---
+# --- 自定義 CSS (強制暗黑風格與專業按鈕) ---
 st.markdown("""
 <style>
+    .stApp {
+        background-color: #0E1117;
+        color: #FAFAFA;
+    }
     .stButton>button {
         width: 100%;
         background-color: #2E8B57;
         color: white;
+        border-radius: 8px;
+        font-weight: bold;
+    }
+    .stButton>button:hover {
+        background-color: #3CB371;
+        border-color: #3CB371;
     }
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
@@ -26,6 +37,7 @@ st.markdown("""
         background-color: #1E1E1E;
         border-radius: 4px;
         padding: 10px 20px;
+        color: #B0B0B0;
     }
     .stTabs [aria-selected="true"] {
         background-color: #4CAF50;
@@ -34,36 +46,49 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 側邊欄：登入與設定 ---
+# --- 側邊欄：商業邏輯 (BYOK 模式) ---
 with st.sidebar:
     st.title("🔐 StockFlow AI")
+    st.caption("Professional Edition")
     st.markdown("---")
     
-    # 1. 密碼保護
-    password = st.text_input("輸入訪問密碼 (Access Password)", type="password")
-    if password != "22Vbncsl":  # 【注意】這裡設定你的密碼，目前是 123456
-        st.warning("請輸入正確密碼以解鎖功能")
-        st.stop()  # 停止執行下面的程式碼
+    # 1. 產品訪問密碼 (你賣給客戶的通行證)
+    password = st.text_input("輸入產品授權碼 (Access Code)", type="password")
     
-    st.success("✅ 登入成功")
+    # 【注意】這裡設定你要在 Gumroad 賣的密碼，目前預設為 123456
+    if password != "Money2026":
+        st.warning("🔒 請輸入授權碼以解鎖功能")
+        st.info("💡 還沒購買？[點此前往 Gumroad 購買](https://gumroad.com/)") # 記得換成你的連結
+        st.stop()
+    
+    st.success("✅ 授權驗證成功")
     st.markdown("---")
     
-    # 2. API Key 輸入
-    api_key = st.text_input("輸入 Google API Key", type="password")
+    # 2. API Key (客戶自備)
+    st.markdown("### 🔑 設定 AI 引擎")
+    api_key = st.text_input("輸入您的 Google API Key", type="password")
+    
+    st.caption("🚀 本工具使用 BYOK 模式 (Bring Your Own Key)。請使用您自己的 Key 以確保隱私與最快速度。")
+    st.markdown("[👉 點此免費獲取 Google API Key](https://aistudio.google.com/app/apikey)")
+    
     if not api_key:
-        st.info("請輸入你的 API Key (以 AIza 開頭)")
+        st.warning("⚠️ 請輸入 Google API Key 以開始使用")
         st.stop()
     
     # 設定 Gemini
-    genai.configure(api_key=api_key)
+    try:
+        genai.configure(api_key=api_key)
+    except Exception as e:
+        st.error("API Key 格式錯誤，請重新檢查")
+        st.stop()
     
-    # 模型選擇
-    model_name = "gemini-1.5-flash"  # 使用 Flash 模型比較省錢且快速
-    st.caption(f"目前使用模型: {model_name}")
+    # 模型選擇 (已升級為 Pro)
+    model_name = "gemini-1.5-pro" 
+    st.success(f"🤖 AI 引擎已啟動: {model_name}")
 
 # --- 主程式邏輯 ---
 
-# 系統指令 (System Prompt) - 這是大腦的核心
+# 系統指令 (System Prompt)
 SYSTEM_PROMPT = """
 你現在是「StockSensei X」，全球頂尖的圖庫市場策略顧問與 AI 影像導演。
 你的核心任務是協助使用者分析影像、生成高品質的 AI 繪圖/影片提示詞 (Prompt)，並提供符合 Adobe Stock、Shutterstock 標準的專業 SEO 元數據。
@@ -112,17 +137,13 @@ with tab1:
             user_content = image
         elif uploaded_file.type.startswith('video'):
             st.video(uploaded_file)
-            # 影片處理需要先上傳到 Google 臨時空間
+            # 影片處理
             with st.spinner("正在處理影片檔案..."):
-                # 儲存臨時檔案
-                import tempfile
                 tfile = tempfile.NamedTemporaryFile(delete=False) 
                 tfile.write(uploaded_file.read())
                 video_path = tfile.name
-                # 上傳到 Gemini
                 video_file = genai.upload_file(video_path)
                 
-                # 等待處理完成
                 while video_file.state.name == "PROCESSING":
                     time.sleep(2)
                     video_file = genai.get_file(video_file.name)
@@ -130,7 +151,7 @@ with tab1:
                 user_content = video_file
 
         if st.button("✨ 開始解碼 (Generate Prompt)", key="btn_decode"):
-            with st.spinner("StockSensei 正在分析影像結構..."):
+            with st.spinner("StockSensei 正在分析影像結構 (使用 Pro 模型)..."):
                 try:
                     # 發送請求
                     response = model.generate_content([
@@ -160,7 +181,6 @@ with tab2:
             st.video(uploaded_file_seo)
             # 影片處理
             with st.spinner("正在處理影片檔案..."):
-                import tempfile
                 tfile = tempfile.NamedTemporaryFile(delete=False) 
                 tfile.write(uploaded_file_seo.read())
                 video_path = tfile.name
@@ -173,11 +193,11 @@ with tab2:
                 seo_content = video_file_seo
 
         if st.button("🚀 生成 SEO 套件 (Generate SEO)", key="btn_seo"):
-            with st.spinner("StockSensei 正在撰寫 SEO 關鍵字..."):
+            with st.spinner("StockSensei 正在撰寫 SEO 關鍵字 (使用 Pro 模型)..."):
                 try:
                     prompt_text = """
                     請針對這個作品，產出 SEO 套件。
-                    請嚴格遵守以下格式輸出：
+                    請嚴格遵守以下格式輸出英文內容：
                     
                     【SEO Titles (5 options)】
                     1.
@@ -192,11 +212,11 @@ with tab2:
                     """
                     response = model.generate_content([prompt_text, seo_content])
                     st.markdown("### 📝 SEO 輸出結果")
-                    st.code(response.text, language="markdown") # 使用代碼區塊方便複製
+                    st.code(response.text, language="markdown") 
                     st.success("生成完畢！請點擊右上角複製內容。")
                 except Exception as e:
                     st.error(f"發生錯誤：{str(e)}")
 
 # --- 頁尾 ---
 st.markdown("---")
-st.markdown("© 2025 StockFlow AI | Powered by Google Gemini 1.5 Flash")
+st.markdown("© 2025 StockFlow AI | Powered by Google Gemini 1.5 Pro")
