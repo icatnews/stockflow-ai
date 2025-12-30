@@ -61,7 +61,7 @@ st.markdown("""
 # --- 3. 側邊欄 (商業邏輯) ---
 with st.sidebar:
     st.title("🔐 StockFlow AI")
-    st.caption("Professional Edition v1.1")
+    st.caption("Professional Edition v1.2 (Flash)")
     st.markdown("---")
     
     # 授權碼
@@ -85,16 +85,16 @@ with st.sidebar:
     
     try:
         genai.configure(api_key=api_key)
-        # 設定模型 (使用 Pro)
+        # 設定模型 (換回 Flash 以確保穩定性)
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-pro",
+            model_name="gemini-1.5-flash", 
             system_instruction="""你現在是「StockSensei X」，全球頂尖的圖庫市場策略顧問。
             你的核心任務是協助使用者分析影像、生成高品質的 AI 繪圖/影片提示詞 (Prompt)，並提供符合 Adobe Stock、Shutterstock 標準的專業 SEO 元數據。
             語言規則：分析與建議使用「繁體中文」，SEO 內容 (Titles, Keywords, Prompt) 使用「英文」。
             輸出格式必須包含：【視覺解構】、【商業價值】、【AI Prompt】、【SEO Titles】、【Keywords】。
             """
         )
-        st.toast("AI 引擎連線成功！", icon="🤖")
+        st.toast("AI 引擎連線成功 (Flash)！", icon="⚡")
     except Exception as e:
         st.error("API Key 錯誤")
         st.stop()
@@ -125,15 +125,15 @@ with tab1:
             elif uploaded_file.type.startswith('video'):
                 st.video(uploaded_file)
                 with st.spinner("影片處理中 (正在上傳到 AI)..."):
-                    # 【修復點】強制加上 .mp4 副檔名，避免 ValueError
+                    # 強制加上 .mp4 副檔名
                     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
                     tfile.write(uploaded_file.read())
-                    tfile.close() # 記得關閉檔案
+                    tfile.close() 
                     
                     try:
                         video_file = genai.upload_file(tfile.name)
                         while video_file.state.name == "PROCESSING":
-                            time.sleep(2)
+                            time.sleep(1)
                             video_file = genai.get_file(video_file.name)
                         user_content = video_file
                     except Exception as e:
@@ -175,7 +175,7 @@ with tab2:
             elif seo_file.type.startswith('video'):
                 st.video(seo_file)
                 with st.spinner("影片處理中..."):
-                    # 【修復點】這裡也加上 .mp4
+                    # 強制加上 .mp4
                     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') 
                     tfile.write(seo_file.read())
                     tfile.close()
@@ -183,7 +183,7 @@ with tab2:
                     try:
                         video_file = genai.upload_file(tfile.name)
                         while video_file.state.name == "PROCESSING":
-                            time.sleep(2)
+                            time.sleep(1)
                             video_file = genai.get_file(video_file.name)
                         seo_content = video_file
                     except Exception as e:
@@ -210,4 +210,4 @@ with tab2:
 
 # --- 頁尾 ---
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #666;'>© 2025 StockFlow AI | Powered by Google Gemini 1.5 Pro</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #666;'>© 2025 StockFlow AI | Powered by Google Gemini 1.5 Flash</div>", unsafe_allow_html=True)
