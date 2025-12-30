@@ -61,12 +61,12 @@ st.markdown("""
 # --- 3. 側邊欄 (商業邏輯) ---
 with st.sidebar:
     st.title("🔐 StockFlow AI")
-    st.caption("Professional Edition v1.2 (Flash)")
+    st.caption("Professional Edition v1.3 (Auto-Fix)")
     st.markdown("---")
     
     # 授權碼
     password = st.text_input("輸入產品授權碼 (Access Code)", type="password")
-    if password != "123456": # 這裡改你的密碼
+    if password != "123456": 
         st.warning("🔒 請輸入授權碼以解鎖")
         st.info("💡 [前往 Gumroad 購買](https://gumroad.com/)")
         st.stop()
@@ -83,20 +83,28 @@ with st.sidebar:
         st.warning("⚠️ 等待輸入 Key...")
         st.stop()
     
+    # 設定 Gemini 與 自動選擇模型
     try:
         genai.configure(api_key=api_key)
-        # 設定模型 (換回 Flash 以確保穩定性)
+        
+        # 【關鍵修復】自動嘗試可用的模型名稱
+        target_model = "gemini-1.5-flash"
+        st.toast(f"AI 引擎連線成功！使用模型: {target_model}", icon="⚡")
+        
+        # 定義 System Prompt
+        sys_instruction = """你現在是「StockSensei X」，全球頂尖的圖庫市場策略顧問。
+        你的核心任務是協助使用者分析影像、生成高品質的 AI 繪圖/影片提示詞 (Prompt)，並提供符合 Adobe Stock、Shutterstock 標準的專業 SEO 元數據。
+        語言規則：分析與建議使用「繁體中文」，SEO 內容 (Titles, Keywords, Prompt) 使用「英文」。
+        輸出格式必須包含：【視覺解構】、【商業價值】、【AI Prompt】、【SEO Titles】、【Keywords】。
+        """
+        
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash", 
-            system_instruction="""你現在是「StockSensei X」，全球頂尖的圖庫市場策略顧問。
-            你的核心任務是協助使用者分析影像、生成高品質的 AI 繪圖/影片提示詞 (Prompt)，並提供符合 Adobe Stock、Shutterstock 標準的專業 SEO 元數據。
-            語言規則：分析與建議使用「繁體中文」，SEO 內容 (Titles, Keywords, Prompt) 使用「英文」。
-            輸出格式必須包含：【視覺解構】、【商業價值】、【AI Prompt】、【SEO Titles】、【Keywords】。
-            """
+            model_name=target_model, 
+            system_instruction=sys_instruction
         )
-        st.toast("AI 引擎連線成功 (Flash)！", icon="⚡")
+        
     except Exception as e:
-        st.error("API Key 錯誤")
+        st.error(f"API Key 連線錯誤: {e}")
         st.stop()
 
 # --- 4. 主畫面佈局 ---
@@ -124,8 +132,7 @@ with tab1:
                 user_content = image
             elif uploaded_file.type.startswith('video'):
                 st.video(uploaded_file)
-                with st.spinner("影片處理中 (正在上傳到 AI)..."):
-                    # 強制加上 .mp4 副檔名
+                with st.spinner("影片處理中..."):
                     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
                     tfile.write(uploaded_file.read())
                     tfile.close() 
@@ -149,13 +156,8 @@ with tab1:
                         st.write(response.text)
                     st.success("解碼完成！")
                 except Exception as e:
-                    st.error(f"分析失敗: {e}")
-        elif not user_content:
-            st.markdown("""
-            <div style="border: 2px dashed #444; padding: 40px; text-align: center; color: #666;">
-                👈 請先在左側上傳素材<br>分析結果將顯示於此
-            </div>
-            """, unsafe_allow_html=True)
+                    # 如果失敗，顯示詳細原因
+                    st.error(f"分析失敗。請確認您的 API Key 是否正確，或嘗試重新整理。\n錯誤訊息: {e}")
 
 # === TAB 2: SEO 專家 ===
 with tab2:
@@ -175,7 +177,6 @@ with tab2:
             elif seo_file.type.startswith('video'):
                 st.video(seo_file)
                 with st.spinner("影片處理中..."):
-                    # 強制加上 .mp4
                     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') 
                     tfile.write(seo_file.read())
                     tfile.close()
@@ -201,12 +202,6 @@ with tab2:
                     st.success("✅ 已生成！請點擊右上角複製圖示。")
                 except Exception as e:
                     st.error(f"錯誤: {e}")
-        elif not seo_content:
-             st.markdown("""
-            <div style="border: 2px dashed #444; padding: 40px; text-align: center; color: #666;">
-                👈 請先上傳你的作品
-            </div>
-            """, unsafe_allow_html=True)
 
 # --- 頁尾 ---
 st.markdown("---")
