@@ -3,6 +3,7 @@ import google.generativeai as genai
 from PIL import Image
 import time
 import tempfile
+import os
 
 # --- 1. 網頁基礎設定 ---
 st.set_page_config(
@@ -12,31 +13,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS 魔法 (讓介面變漂亮的核心) ---
+# --- 2. CSS 魔法 (介面美化) ---
 st.markdown("""
 <style>
-    /* 強制背景色與字體 */
     .stApp {
         background-color: #0E1117;
         color: #E0E0E0;
     }
-    
-    /* 標題樣式 */
     h1 {
         color: #4CAF50 !important;
         font-family: 'Helvetica Neue', sans-serif;
     }
-    
-    /* 卡片式容器風格 */
-    .css-1r6slb0, .css-12oz5g7 {
-        background-color: #1E1E1E;
-        border: 1px solid #333;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }
-    
-    /* 按鈕美化 */
     .stButton>button {
         width: 100%;
         background-color: #2E8B57;
@@ -49,10 +36,7 @@ st.markdown("""
     }
     .stButton>button:hover {
         background-color: #3CB371;
-        box-shadow: 0 4px 12px rgba(46, 139, 87, 0.4);
     }
-    
-    /* 分頁標籤美化 */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background-color: #0E1117;
@@ -66,8 +50,6 @@ st.markdown("""
     .stTabs [aria-selected="true"] {
         background-color: #4CAF50;
     }
-    
-    /* 提示框美化 */
     .stSuccess, .stInfo, .stWarning {
         background-color: #1E1E1E !important;
         color: #E0E0E0 !important;
@@ -79,7 +61,7 @@ st.markdown("""
 # --- 3. 側邊欄 (商業邏輯) ---
 with st.sidebar:
     st.title("🔐 StockFlow AI")
-    st.caption("Professional Edition v1.0")
+    st.caption("Professional Edition v1.1")
     st.markdown("---")
     
     # 授權碼
@@ -103,8 +85,9 @@ with st.sidebar:
     
     try:
         genai.configure(api_key=api_key)
+        # 設定模型 (使用 Pro)
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-pro", # 使用 Pro 模型
+            model_name="gemini-1.5-pro",
             system_instruction="""你現在是「StockSensei X」，全球頂尖的圖庫市場策略顧問。
             你的核心任務是協助使用者分析影像、生成高品質的 AI 繪圖/影片提示詞 (Prompt)，並提供符合 Adobe Stock、Shutterstock 標準的專業 SEO 元數據。
             語言規則：分析與建議使用「繁體中文」，SEO 內容 (Titles, Keywords, Prompt) 使用「英文」。
@@ -122,14 +105,13 @@ st.title("📈 StockFlow AI")
 st.markdown("##### Analyze. Prompt. Rank. Sell. | 專業圖庫市場策略顧問")
 st.markdown("---")
 
-# 建立兩個大分頁，模仿原本的切換
 tab1, tab2 = st.tabs(["🧬 DeCode AI (視覺解碼)", "🚀 StockSensei X (SEO 專家)"])
 
 # === TAB 1: 視覺解碼 ===
 with tab1:
-    col1, col2 = st.columns([1, 1], gap="large") # 左右分欄
+    col1, col2 = st.columns([1, 1], gap="large")
     
-    with col1: # 左邊放上傳
+    with col1:
         st.markdown("### 📂 素材上傳")
         st.info("上傳參考圖/影片，反推大師級 Prompt。")
         uploaded_file = st.file_uploader("拖曳或點擊上傳", type=["jpg", "png", "mp4"], key="decode_up")
@@ -142,27 +124,30 @@ with tab1:
                 user_content = image
             elif uploaded_file.type.startswith('video'):
                 st.video(uploaded_file)
-                with st.spinner("影片處理中..."):
-                    tfile = tempfile.NamedTemporaryFile(delete=False) 
+                with st.spinner("影片處理中 (正在上傳到 AI)..."):
+                    # 【修復點】強制加上 .mp4 副檔名，避免 ValueError
+                    tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
                     tfile.write(uploaded_file.read())
-                    video_file = genai.upload_file(tfile.name)
-                    while video_file.state.name == "PROCESSING":
-                        time.sleep(2)
-                        video_file = genai.get_file(video_file.name)
-                    user_content = video_file
+                    tfile.close() # 記得關閉檔案
+                    
+                    try:
+                        video_file = genai.upload_file(tfile.name)
+                        while video_file.state.name == "PROCESSING":
+                            time.sleep(2)
+                            video_file = genai.get_file(video_file.name)
+                        user_content = video_file
+                    except Exception as e:
+                        st.error(f"影片上傳失敗: {e}")
     
-    with col2: # 右邊放結果
+    with col2:
         st.markdown("### 🧠 AI 分析報告")
         if user_content and st.button("✨ 開始解碼 (Decode)", key="btn_decode"):
             with st.spinner("StockSensei 正在分析光影與構圖..."):
                 try:
                     response = model.generate_content(["請分析這個素材，給我詳細的 AI 生成 Prompt 和商業分析。", user_content])
-                    
-                    # 使用 Expander 讓介面更乾淨
                     with st.expander("📊 視覺與商業分析 (點擊展開)", expanded=True):
                         st.write(response.text)
-                    
-                    st.success("解碼完成！您可以複製上方的 Prompt 去生成圖像。")
+                    st.success("解碼完成！")
                 except Exception as e:
                     st.error(f"分析失敗: {e}")
         elif not user_content:
@@ -189,15 +174,20 @@ with tab2:
                 seo_content = image
             elif seo_file.type.startswith('video'):
                 st.video(seo_file)
-                # (省略重複的影片處理代碼，邏輯同上)
                 with st.spinner("影片處理中..."):
-                    tfile = tempfile.NamedTemporaryFile(delete=False) 
+                    # 【修復點】這裡也加上 .mp4
+                    tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') 
                     tfile.write(seo_file.read())
-                    video_file = genai.upload_file(tfile.name)
-                    while video_file.state.name == "PROCESSING":
-                        time.sleep(2)
-                        video_file = genai.get_file(video_file.name)
-                    seo_content = video_file
+                    tfile.close()
+                    
+                    try:
+                        video_file = genai.upload_file(tfile.name)
+                        while video_file.state.name == "PROCESSING":
+                            time.sleep(2)
+                            video_file = genai.get_file(video_file.name)
+                        seo_content = video_file
+                    except Exception as e:
+                        st.error(f"影片上傳失敗: {e}")
 
     with col4:
         if seo_content and st.button("🚀 生成 SEO 套件 (Generate)", key="btn_seo"):
