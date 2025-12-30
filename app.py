@@ -61,7 +61,7 @@ st.markdown("""
 # --- 3. 側邊欄 (商業邏輯) ---
 with st.sidebar:
     st.title("🔐 StockFlow AI")
-    st.caption("Ultimate Edition v2.0")
+    st.caption("Ultimate Edition v2.1")
     st.markdown("---")
     
     # 授權碼
@@ -88,26 +88,16 @@ with st.sidebar:
     try:
         genai.configure(api_key=api_key)
         
-        # 定義我們要嘗試的模型清單 (優先順序)
-        candidate_models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
-        active_model_name = ""
+        # 定義我們要嘗試的模型清單 (包含最新別名)
+        candidate_models = [
+            "gemini-1.5-flash", 
+            "gemini-1.5-flash-latest", 
+            "gemini-1.5-pro", 
+            "gemini-1.5-pro-latest"
+        ]
+        active_model_name = "gemini-1.5-flash" # 預設
         
-        # 測試連線
-        for m in candidate_models:
-            try:
-                # 嘗試建立一個簡單的模型物件
-                test_model = genai.GenerativeModel(m)
-                # 這裡不實際生成，只是確認名字是否被接受。
-                # 真正的測試通常在生成時，但我們可以先鎖定名字。
-                active_model_name = m
-                break
-            except:
-                continue
-        
-        if not active_model_name:
-            active_model_name = "gemini-1.5-flash" # 預設 fallback
-            
-        st.toast(f"AI 引擎已就緒！使用模型: {active_model_name}", icon="⚡")
+        st.toast(f"AI 引擎連線中...", icon="⚡")
         
         sys_instruction = """你現在是「StockSensei X」，全球頂尖的圖庫市場策略顧問。
         你的核心任務是協助使用者分析影像、生成高品質的 AI 繪圖/影片提示詞 (Prompt)，並提供符合 Adobe Stock、Shutterstock 標準的專業 SEO 元數據。
@@ -115,6 +105,7 @@ with st.sidebar:
         輸出格式必須包含：【視覺解構】、【商業價值】、【AI Prompt】、【SEO Titles】、【Keywords】。
         """
         
+        # 這裡我們不預先檢查，直接在使用時讓它嘗試
         model = genai.GenerativeModel(
             model_name=active_model_name, 
             system_instruction=sys_instruction
@@ -150,6 +141,7 @@ with tab1:
             elif uploaded_file.type.startswith('video'):
                 st.video(uploaded_file)
                 with st.spinner("影片處理中..."):
+                    # 強制加上 .mp4
                     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
                     tfile.write(uploaded_file.read())
                     tfile.close() 
@@ -168,14 +160,15 @@ with tab1:
         if user_content and st.button("✨ 開始解碼 (Decode)", key="btn_decode"):
             with st.spinner(f"StockSensei 正在分析..."):
                 try:
+                    # 嘗試生成內容
                     response = model.generate_content(["請分析這個素材，給我詳細的 AI 生成 Prompt 和商業分析。", user_content])
                     with st.expander("📊 視覺與商業分析 (點擊展開)", expanded=True):
                         st.write(response.text)
                     st.success("解碼完成！")
                 except Exception as e:
-                    # 如果主要模型失敗，這裡會顯示錯誤
+                    # 如果失敗，顯示詳細原因
                     st.error(f"分析失敗。錯誤訊息: {e}")
-                    st.warning("建議：請檢查 API Key 是否有權限，或重新整理網頁。")
+                    st.warning("請嘗試重新整理頁面，或檢查您的 API Key 是否支援 Flash 模型。")
 
 # === TAB 2: SEO 專家 ===
 with tab2:
