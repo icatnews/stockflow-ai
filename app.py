@@ -56,7 +56,7 @@ with st.sidebar:
     password = st.text_input("輸入產品授權碼 (Access Code)", type="password")
     
     # 【注意】這裡設定你要在 Gumroad 賣的密碼，目前預設為 123456
-    if password != "Money2026":
+    if password != "123456":
         st.warning("🔒 請輸入授權碼以解鎖功能")
         st.info("💡 還沒購買？[點此前往 Gumroad 購買](https://gumroad.com/)") # 記得換成你的連結
         st.stop()
